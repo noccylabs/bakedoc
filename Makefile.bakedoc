@@ -1,0 +1,38 @@
+#PD_OPTS=--toc --number-sections --normalize --smart -V geometry="margin=1in" -f markdown --standalone
+PD_OPTS=--toc --number-sections --standalone --smart --normalize -V geometry="margin=1in"
+
+# IMAGES=$(IMGMSC:.msc=.png) $(IMGDOT:.dot=.png)
+IMAGES=$(shell $(BAKEDOC)/bin/mdimages -i $(CACHE) -l -g)
+CACHE=.bakedoc.cache
+OUT_MD=$(OUTPUT).md
+OUT_PDF=$(OUTPUT).pdf
+INPUT_DIR=$(INPUT)
+
+.PHONY: all clean builddoc images
+
+all: $(OUT_MD) $(OUT_PDF)
+
+clean:
+	rm -rf $(OUT_PDF) $(OUT_MD) $(IMAGES) $(CACHE)
+
+builddoc: $(CACHE)
+
+$(CACHE): $(INPUT_DIR)/*.md
+	$(BAKEDOC)/bin/assemble $(INPUT) > $(CACHE)
+
+images: $(IMAGES)
+
+$(OUT_MD): builddoc images
+	$(BAKEDOC)/bin/mdimages -i $(CACHE) -r -o $(OUT_MD)
+
+$(OUT_PDF): $(OUT_MD)
+	pandoc $(PD_OPTS) $(OUT_MD) -o $(OUT_PDF)
+
+%.png: %.msc
+	mscgen -T png -o $@ -i $<
+	convert $@ -density $(MSC_PPI) -units PixelsPerInch $@
+
+%.png: %.dot
+	dot -Tpng -o$@ $<
+	convert $@ -density $(DOT_PPI) -units PixelsPerInch $@
+

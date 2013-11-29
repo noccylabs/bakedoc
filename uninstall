@@ -1,0 +1,4 @@
+#!/bin/bash
+echo -n "Uninstalling Bakedoc ... "
+rm -rf .oven bakedoc.conf BAKEDOC Makefile
+echo "Ok"

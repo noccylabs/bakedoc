@@ -1,0 +1,47 @@
+#!/bin/bash
+
+SOURCEDIR="`dirname $0`"
+
+echo -n "Checking and creating directories ... "
+test -d images || mkdir images
+test -d source || mkdir source
+echo "Ok"
+
+test -d .oven || { 
+    echo -n "Creating oven ... "
+    mkdir .oven; 
+    cp -R $SOURCEDIR/* .oven/
+    chmod +x .oven/bin/*
+    chmod +x .oven/install
+    chmod +x .oven/uninstall
+    cp .oven/BAKEDOC .
+    cp .oven/template/*.md source/
+    echo "Ok"
+}
+SOURCEDIR=.oven
+
+echo "Testing for installed software"
+$SOURCEDIR/install-check -c $SOURCEDIR/system.conf
+
+echo -n "Copying and patching Makefile ... "
+cp $SOURCEDIR/Makefile.default ./Makefile
+echo "BAKEDOC=$SOURCEDIR" >> ./Makefile
+echo "include bakedoc.conf" >> ./Makefile
+echo "include $SOURCEDIR/Makefile.bakedoc" >> ./Makefile
+echo "Ok"
+
+echo -n "Checking bakedoc.conf ... "
+test -e bakedoc.conf && echo "Ok"
+test -e bakedoc.conf || {
+    echo "Missing"
+    echo "# Source directory" > bakedoc.conf
+    echo "INPUT=source" >> bakedoc.conf
+    echo "# Output basename" >> bakedoc.conf
+    echo "OUTPUT=output" >> bakedoc.conf
+    echo "# Pixels Per Inch for generated images" >> bakedoc.conf
+    echo "MSC_PPI=75" >> bakedoc.conf
+    echo "DOT_PPI=175" >> bakedoc.conf
+}
+
+echo ""
+echo "You are now ready to type 'make' to build the markdown files from 'source'"

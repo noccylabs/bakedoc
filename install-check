@@ -1,0 +1,141 @@
+#!/usr/bin/php
+<?php
+
+define("IC_VERSION","1.0");
+
+echo "This is install-check ".IC_VERSION."\n";
+
+abstract class Fixer {
+    abstract public function fix();
+}
+
+class PackageInstallerFixer extends Fixer {
+
+    private static $packagemanager;
+    private $packages;
+    
+    public function __construct($packages) {
+        if (empty(self::$packagemanager)) {
+            self::$packagemanager = Check::packagemanager();
+        }
+        $this->packages = $packages;
+    }
+    
+    public function fix() {
+    
+        $pm = self::$packagemanager;
+        switch($pm) {
+            case "aptitude":
+                $p = sprintf("Install '%s' with %s? [y/N] ", $this->packages, $pm);
+                $co = strtolower(readline($p));
+                if ($co == "y") {
+                    passthru("sudo apt-get install {$this->packages}");
+                    return true;
+                }
+                break;
+        }
+        return false;
+    
+    }
+
+}
+
+
+class Check {
+    public static function binary($name, Fixer $fixer=null) {
+        printf("Checking for %s: ",$name);
+        $binary = trim(exec("which {$name} 2>/dev/null"));
+        if (!$binary) {
+            printf("Not found.\n");
+            if ($fixer) return $fixer->fix();
+            return false;
+        }
+        printf("%s\n", $binary);
+        return $binary;
+    }
+    public static function custom($info, callable $custom, Fixer $fixer=null) {
+        printf("%s: ",$info);
+        $ok = $custom();
+        if ($ok) {
+            echo "Ok\n";
+            return true;
+        }
+        if ($fixer) return $fixer->fix();
+        return false;
+    }
+    public static function os() {
+        static $os;
+        if ($os) return $os;
+        printf("Checking OS ... ");
+        $os = exec("uname -o");
+        printf("%s\n", $os);
+        return $os;
+    }
+    public static function platform() {
+        static $os;
+        if ($os) return $os;
+        printf("Checking platform ... ");
+        $os = exec("uname -p");
+        printf("%s\n", $os);
+        return $os;
+    }
+    public static function packagemanager() {
+        static $pm;
+        if ($pm) return $pm;
+        printf("Finding package manager: ");
+        foreach([ "aptitude", "rpm", "emerge" ] as $pm) {
+            if (trim(exec("which {$pm}"))) break;
+            $pm = null;
+        }
+        printf("%s\n", $pm?:"Unknown");
+        return $pm;
+    }
+}
+
+function writeconf($file,$config) {
+    printf("Writing configuration to %s ... ", $file);
+    file_put_contents($file,$config);
+    printf("Ok\n");
+}
+
+
+$os = Check::os();
+$pf = Check::platform();
+$pm = Check::packagemanager();
+
+$pandoc  = Check::binary("pandoc", new PackageInstallerFixer("pandoc"));
+$latex   = Check::binary("latex", new PackageInstallerFixer("texlive"));
+$dotty   = Check::binary("dotty", new PackageInstallerFixer("dotty"));
+$mscgen  = Check::binary("mscgen", new PackageInstallerFixer("mscgen"));
+$imagick = Check::binary("convert", new PackageInstallerFixer("imagick"));
+$pdfjoin = Check::binary("pdfjoin");
+$php_ffmpeg = Check::custom(
+        "Checking if php5-gd is installed", 
+        function(){
+            $ok = exec("php -r \"echo extension_loaded('gd');\"");
+            return (!!$ok);
+        }, new PackageInstallerFixer("php5-gd")
+    );
+
+
+$cfg = null;
+/*$cfg.= "# Document outputs\n";
+$cfg.= "OUTPUT=output.md\n";
+$cfg.= "OUTPUT_PDF=1\n";
+$cfg.= "OUTPUT_HTML=0\n";
+$cfg.= "\n";*/
+$cfg.= "# System info\n";
+$cfg.= sprintf("BAKEDOC_OS=%s\n",strtolower($os));
+$cfg.= sprintf("BAKEDOC_PLATFORM=%s\n",strtolower($pf));
+$cfg.= "\n";
+$cfg.= "# Available tools\n";
+$cfg.= sprintf("HAS_DOTTY=%d\n",($dotty!==false));
+$cfg.= sprintf("HAS_MSCGEN=%d\n",($mscgen!==false));
+$cfg.= sprintf("HAS_IMAGICK=%d\n",($imagick!==false));
+$cfg.= sprintf("HAS_PDFJOIN=%d\n",($pdfjoin!==false));
+
+$opts = getopt("c:");
+if (array_key_exists("c",$opts))
+    writeconf($opts["c"],$cfg);
+else
+    writeconf("bakedoc.conf",$cfg);

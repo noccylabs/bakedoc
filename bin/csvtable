@@ -1,0 +1,32 @@
+#!/usr/bin/php
+<?php
+
+
+$opts = getopt("hi:o:c");
+
+if (array_key_exists("h",$opts)) {
+    
+    echo "csvtable: convert a csv-file into a markdown table\n";
+    echo "use as: csvtable [-i input] [-o output]\n";
+    echo "If -i or -o are omitted, stdin or stdout is used.\n";
+    exit(1);
+
+}
+
+$hIN  = array_key_exists("i",$opts)?fopen($opts["i"],"r"):STDIN;
+$hOUT = array_key_exists("o",$opts)?fopen($opts["o"],"w"):STDOUT;
+
+define("INPUT",$hIN);
+define("OUTPUT",$hOUT);
+
+$line = 0;
+while (!feof(INPUT)) {
+    $csv = fgetcsv(INPUT,8192,";");
+    if ($csv) {
+        fprintf(OUTPUT,"| %s |\n",join(" | ",$csv));
+        if ($line == 0) {
+            fprintf(OUTPUT,"|%s\n",str_repeat(":----|",count($csv)));
+        }
+        $line++;
+    }
+}

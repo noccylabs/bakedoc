@@ -1,0 +1,60 @@
+#!/usr/bin/php
+<?php
+
+require_once __DIR__."/lib/markdowntweak.php";
+
+function get_page($url) {
+    printf("Opening URL %s ... ", $url);
+    $ctx = stream_context_create();
+    $buf = file_get_contents($url,false,$ctx);
+    printf("Ok\n");
+    return $buf;
+}
+
+function get_file($file) {
+    printf("Reading from %s ... ", $file);
+    $buf = file_get_contents($file);
+    printf("Ok\n");
+    return $buf;
+}
+
+function get_stdin() {
+    $buf = null;
+    while(!feof(STDIN)) $buf .= fgets(STDIN);
+    return $buf;
+}
+
+$opts = getopt("u:i:o:hm");
+if (array_key_exists("u",$opts)) {
+    $html = get_page($opts["u"]);
+} elseif (array_key_exists("i",$opts)) {
+    $html = get_file($opts["i"]);
+} else {
+    $html = get_stdin();
+}
+
+$bodyoffs = strpos("<body",strtolower($html));
+if ($bodyoffs !== false) {
+    $bodyends = strpos("</body",strtolower($html)) - 1;
+    $bodyoffs = strpos(">",strtolower($html),$bodyoffs) + 1;
+    $bodylen = $bodyends - $bodyoffs;
+    $body = substr($html,$bodyoffs,$bodylen);
+} else {
+    $body = $html;
+}
+
+$md = null;
+$tmp = tempnam(null,".html");
+file_put_contents($tmp,$body);
+exec("pandoc -i {$tmp} -t markdown", $md);
+$md = join("\n",$md);
+$md = str_replace("\n\\\n","\n",$md);
+
+unlink($tmp);
+
+if (array_key_exists("o",$opts)) {
+    file_put_contents($opts["o"],$md);
+} else {
+    echo $md;
+}
+

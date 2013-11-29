@@ -1,0 +1,10 @@
+This document uses Bakedoc to generate PDF and Markdown output from
+the markdown files in the source directory.
+
+To create the output files, just run "make" in the root directory.
+
+To ensure that your system has all the required dependencies, run
+".oven/install-check" from root directory.
+
+And remember, only edit the files in source/, and not the generated
+Markdown, as it will be overwritten by the Makefile.
